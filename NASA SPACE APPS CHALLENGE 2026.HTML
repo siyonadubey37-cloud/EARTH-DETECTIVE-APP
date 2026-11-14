@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Detective | Climate Surveillance Console</title>
+<meta name="description" content="Open-source climate trend detective: 100 contacts, 40 years of NASA POWER data, NASA GIBS imagery, and orbital sensor looks.">
+<style>
+:root {
+  --a: #f0a43a;
+  --g: #58ff8c;
+  --r: #ff3b3b;
+  --c: #5fd6ff;
+  --ink: #dfe6ea;
+  --mute: #3fe0c5;
+  --ln: rgba(120, 200, 255, 0.22);
+  --bg: rgba(3, 8, 12, 0.84);
+  --f: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--ink);
+  font: 13px/1.55 var(--f);
+}
+#gl {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+}
+#det {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+button, select, input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--a);
+  outline-offset: 1px;
+}
+.lb {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.hud {
+  position: fixed;
+  z-index: 4;
+  pointer-events: none;
+  color: #bfe9ff;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  transition: opacity 0.6s;
+}
+#hl { left: 312px; top: 14px; }
+#hl b { font-size: 18px; letter-spacing: 0.3em; color: #fff; }
+#hl i { color: var(--a); font-style: normal; }
+#hr { right: 20px; top: 14px; text-align: right; }
+#hbl { left: 312px; bottom: 84px; }
+#hbr { right: 20px; bottom: 84px; text-align: right; }
+body.dos #hbr, body.dos #leg { right: 472px; }
+
+.cr {
+  position: fixed;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--c);
+  opacity: 0.6;
+  z-index: 3;
+  pointer-events: none;
+}
+.cr:nth-of-type(1) { left: 10px; top: 10px; border-right: 0; border-bottom: 0; }
+.cr:nth-of-type(2) { right: 10px; top: 10px; border-left: 0; border-bottom: 0; }
+.cr:nth-of-type(3) { left: 10px; bottom: 10px; border-right: 0; border-top: 0; }
+.cr:nth-of-type(4) { right: 10px; bottom: 10px; border-left: 0; border-top: 0; }
+
+.panel {
+  position: fixed;
+  z-index: 5;
+  background: var(--bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  overflow: auto;
+  transition: transform 0.35s, opacity 0.6s;
+}
+#left {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  bottom: 84px;
+  width: 290px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+#left .panel { pointer-events: auto; }
+#ctl { position: static; flex: none; padding: 12px; max-height: 58%; }
+#ctl .h {
+  margin: 12px 0 6px;
+  color: var(--c);
+  letter-spacing: 0.16em;
+  font-size: 11px;
+  border-bottom: 1px solid var(--ln);
+  padding-bottom: 3px;
+}
+#ctl .h:first-child { margin-top: 0; }
+#sg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+#sg button {
+  border: 1px solid var(--ln);
+  border-radius: 3px;
+  padding: 6px 0;
+  font-size: 11.5px;
+  color: var(--mute);
+  transition: background 0.15s, color 0.15s;
+}
+#sg button.on { color: #000; background: var(--a); border-color: var(--a); font-weight: 600; }
+#ctl label { display: flex; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; font-size: 12px; }
+#ctl input[type=checkbox] { accent-color: var(--a); }
+#ctl select, #cases input, #cases select {
+  width: 100%;
+  background: rgba(2, 6, 10, 0.92);
+  border: 1px solid var(--ln);
+  border-radius: 3px;
+  padding: 5px 7px;
+  margin-top: 5px;
+}
+.ab { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.ab button {
+  border: 1px solid var(--ln);
+  border-radius: 3px;
+  padding: 7px;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--a);
+  transition: background 0.15s;
+}
+.ab button:hover { background: rgba(240, 164, 58, 0.14); }
+
+#cases { position: static; flex: 1; min-height: 0; }
+#cases .it {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ln);
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+}
+#cases .it:hover, #cases .it.on { background: rgba(240, 164, 58, 0.14); }
+#cases small { color: var(--mute); }
+
+#dossier {
+  right: 12px;
+  top: 72px;
+  bottom: 84px;
+  width: 440px;
+  padding: 18px;
+  transform: translateX(120%);
+}
+#dossier.open { transform: none; }
+#dossier h2 { font-size: 22px; font-weight: 400; margin: 4px 0 6px; letter-spacing: 0.04em; color: #fff; }
+#dossier p { color: #d4ecf7; margin: 7px 0; }
+.stamp {
+  display: inline-block;
+  border: 2px solid;
+  border-radius: 3px;
+  padding: 2px 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 12.5px;
+  margin: 6px 0;
+}
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.g2 div { border-top: 1px solid var(--ln); padding-top: 6px; }
+.g2 b { font-size: 22px; font-weight: 400; display: block; color: #fff; }
+.rk {
+  border: 1px solid rgba(255, 59, 59, 0.45);
+  border-radius: 3px;
+  background: rgba(255, 59, 59, 0.08);
+  padding: 7px 10px;
+  margin: 8px 0;
+}
+.story { border-left: 2px solid var(--a); padding-left: 10px; margin: 10px 0; }
+details { margin-top: 10px; border-top: 1px solid var(--ln); padding-top: 8px; }
+summary { cursor: pointer; color: var(--a); letter-spacing: 0.1em; }
+code { font-size: 10.5px; color: var(--a); word-break: break-all; }
+.x { position: absolute; right: 12px; top: 8px; font-size: 22px; color: var(--mute); padding: 2px 6px; }
+.x:hover { color: #fff; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+td, th { padding: 5px 4px; border-bottom: 1px solid var(--ln); text-align: left; font-weight: 400; }
+th { color: var(--mute); }
+svg text { font-family: inherit; }
+.LIVE { color: var(--g); }
+.CACHED { color: var(--a); }
+.SYNTHETIC { color: var(--r); }
+.ok { color: var(--g); }
+.no { color: var(--r); }
+
+#bar {
+  position: fixed;
+  left: calc(50% + 151px);
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  width: min(760px, calc(100vw - 340px));
+  transition: opacity 0.6s;
+}
+#bar input[type=range] { flex: 1; accent-color: var(--a); cursor: pointer; }
+#yr { font-size: 22px; width: 62px; text-align: center; color: #fff; }
+#play, .zb {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border: 1px solid var(--ln);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s;
+}
+.zb:hover, #play:hover { border-color: var(--a); color: var(--a); }
+#bar select {
+  background: rgba(2, 6, 10, 0.92);
+  border: 1px solid var(--ln);
+  border-radius: 3px;
+  padding: 4px 6px;
+  max-width: 165px;
+}
+
+#leg { right: 20px; bottom: 176px; font-size: 11px; color: var(--mute); text-align: right; }
+#leg i {
+  display: block;
+  height: 5px;
+  width: 150px;
+  border-radius: 2px;
+  margin: 4px 0 2px auto;
+  background: linear-gradient(90deg, #3b9eff, #3fe0c5, #f0a43a, #ff3b3b);
+}
+#tip {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  background: rgba(2, 7, 12, 0.94);
+  border: 1px solid var(--a);
+  border-radius: 3px;
+  padding: 4px 9px;
+  font-size: 12px;
+  display: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+}
+#banner {
+  position: fixed;
+  bottom: 84px;
+  left: calc(50% + 151px);
+  transform: translateX(-50%);
+  z-index: 8;
+  background: rgba(2, 7, 12, 0.95);
+  border: 1px solid var(--a);
+  border-radius: 3px;
+  padding: 7px 14px;
+  display: none;
+  max-width: min(560px, 50vw);
+}
+#satc {
+  position: fixed;
+  left: 312px;
+  bottom: 190px;
+  z-index: 5;
+  background: var(--bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--c);
+  border-radius: 4px;
+  padding: 9px 13px;
+  display: none;
+  max-width: 340px;
+}
+#modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.84);
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+#modal > div {
+  background: #04080b;
+  border: 1px solid var(--ln);
+  border-radius: 4px;
+  width: min(760px, 94vw);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 24px;
+  position: relative;
+}
+#modal h3 { font-weight: 400; font-size: 16px; margin: 14px 0 6px; color: var(--a); letter-spacing: 0.08em; }
+#modal p { color: #d4ecf7; margin: 6px 0; }
+
+.sw { position: relative; aspect-ratio: 1; background: #05070a; border: 1px solid var(--ln); border-radius: 3px; overflow: hidden; }
+.sw img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sw .ov { opacity: 0.82; }
+.sw[data-err]::after, .sw.ld::after {
+  content: "Satellite image unavailable (offline, or no data for this date).";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  color: var(--mute);
+}
+.sw.ld::after { content: "Loading from NASA GIBS..."; }
+.sw.ld[data-slow]::after { content: "Still waiting for NASA. Try the Worldview link."; }
+
+#loader {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.3em;
+  color: var(--c);
+  transition: opacity 0.9s;
+}
+#land {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 9vh;
+  text-align: center;
+  transition: opacity 0.9s;
+  overflow: auto;
+  pointer-events: none;
+}
+#land > * { pointer-events: auto; }
+body:not(.land) #land > * { pointer-events: none; }
+body:not(.land) #land { opacity: 0; pointer-events: none; }
+#land h1 {
+  font-size: clamp(28px, 6vw, 64px);
+  font-weight: 300;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em;
+  color: #fff;
+}
+#land h1 i { color: var(--a); font-style: normal; }
+.go {
+  padding: 13px 38px;
+  border: 1px solid var(--a) !important;
+  border-radius: 3px;
+  color: var(--a);
+  letter-spacing: 0.3em;
+  background: rgba(3, 8, 12, 0.65);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.go:hover {
+  background: rgba(240, 164, 58, 0.16);
+  box-shadow: 0 0 24px rgba(240, 164, 58, 0.25);
+}
+
+body.land .hud, body.land .panel, body.land #bar, body.land .cr, body.land #det {
+  opacity: 0;
+  pointer-events: none;
+}
+body.nohud .hud, body.nohud #det { opacity: 0; }
+
+@media (max-width: 900px) {
+  #left { right: 12px; width: auto; bottom: auto; }
+  #ctl { max-height: 44vh; }
+  #cases { display: none; }
+  #hl { left: 14px; top: auto; bottom: 78px; }
+  #hbl, #hbr, #hr, #leg, #bar select { display: none; }
+  #dossier { left: 8px; right: 8px; width: auto; top: auto; height: 55%; bottom: 72px; }
+  #bar { left: 50%; width: 94vw; bottom: 8px; }
+  #banner { left: 50%; bottom: 132px; max-width: 90vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body class="land">
+<div id="loader">EARTH SYSTEM BUREAU</div>
+<canvas id="gl"></canvas>
+<canvas id="det"></canvas>
+<i class="cr"></i><i class="cr"></i><i class="cr"></i><i class="cr"></i>
+
+<div class="hud" id="hl"><b>EARTH<i>/</i>DETECTIVE</b><br><span class="lb" id="status"></span></div>
+<div class="hud" id="hr"></div>
+<div class="hud" id="hbl"></div>
+<div class="hud" id="hbr"></div>
+<div class="hud" id="leg">Departure from 1985-94 baseline<i></i><span style="display:flex;justify-content:space-between;width:150px;margin-left:auto"><span>0</span><span>+2.5 °C</span></span></div>
+
+<div id="banner"></div>
+<div id="tip"></div>
+<div id="satc"></div>
+
+<div id="land">
+  <h1>EARTH<i>/</i>DETECTIVE</h1>
+  <p class="lb" style="margin:12px 0 28px;max-width:580px;padding:0 16px">A spy-satellite console for the climate. Every warming city is a contact. Follow the evidence.</p>
+  <button class="go" onclick="enter()">INITIALISE</button>
+</div>
+
+<div id="left">
+  <aside id="ctl" class="panel">
+    <div class="h">SENSOR</div>
+    <div id="sg"></div>
+    <div class="h">DATA LAYERS</div>
+    <label><input type="checkbox" id="l-c" checked onchange="L.c=this.checked;vis()">Contacts (100 cities, NASA POWER)</label>
+    <label><input type="checkbox" id="l-s" checked onchange="L.s=this.checked;vis()">NASA satellites</label>
+    <label><input type="checkbox" id="l-d" checked onchange="L.d=this.checked">Detection overlay</label>
+    <select id="ov" onchange="setOvl(this.value)" aria-label="NASA GIBS layer">
+      <option value="off">NASA GIBS: off</option>
+      <option value="lst">NASA GIBS: land surface temperature</option>
+      <option value="nl">NASA GIBS: night lights</option>
+    </select>
+    <div class="ab" style="margin-top:12px">
+      <button id="tour" onclick="tour()">TOUR</button>
+      <button onclick="share()">SHARE</button>
+      <button onclick="meth()">METHOD</button>
+      <button onclick="reset()">RESET</button>
+    </div>
+  </aside>
+  <aside id="cases" class="panel">
+    <div style="position:sticky;top:0;background:#04080b;padding:8px;border-bottom:1px solid var(--ln);z-index:2">
+      <div class="lb">Contacts</div>
+      <input id="q" placeholder="Search 100 cities" oninput="list()" aria-label="Search">
+      <select id="so" onchange="list()" aria-label="Sort">
+        <option value="no">Sort: by region</option>
+        <option value="az">Sort: A-Z</option>
+        <option value="warm">Sort: fastest warming</option>
+        <option value="story">Featured (10)</option>
+      </select>
+    </div>
+    <div id="cl"></div>
+  </aside>
+</div>
+
+<aside id="dossier" class="panel"></aside>
+
+<div id="bar">
+  <button id="play" onclick="play()" aria-label="Play timeline">▶</button>
+  <input id="sl" type="range" min="1985" max="2024" value="2024" aria-label="Year">
+  <span id="yr">2024</span>
+  <select id="metric" aria-label="Metric">
+    <option value="tmax">Hot-season day max</option>
+    <option value="tmin">Hot-season night min</option>
+    <option value="t2m">Annual mean</option>
+  </select>
+  <button class="zb" onclick="zoom(-1)" aria-label="Zoom in">+</button>
+  <button class="zb" onclick="zoom(1)" aria-label="Zoom out">−</button>
+</div>
+
+<div id="modal" onclick="if(event.target===this)this.style.display='none'">
+  <div id="mbody"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ---------- Verified 100-City Geospatial Dataset (Lat/Lon WGS84) ---------- */
+const C = [
+  ["Delhi, India", 28.6139, 77.2090], ["Mohali, India", 30.7046, 76.7179], ["Cairo, Egypt", 30.0444, 31.2357],
+  ["Lagos, Nigeria", 6.5244, 3.3792], ["Mumbai, India", 19.0760, 72.8777], ["Sao Paulo, Brazil", -23.5505, -46.6333],
+  ["Mexico City, Mexico", 19.4326, -99.1332], ["Phoenix, USA", 33.4484, -112.0740], ["Tokyo, Japan", 35.6762, 139.6503],
+  ["Shanghai, China", 31.2304, 121.4737], ["Beijing, China", 39.9042, 116.4074], ["Guangzhou, China", 23.1291, 113.2644],
+  ["Hong Kong, China", 22.3193, 114.1694], ["Seoul, South Korea", 37.5665, 126.9780], ["Taipei, Taiwan", 25.0330, 121.5654],
+  ["Bangkok, Thailand", 13.7563, 100.5018], ["Jakarta, Indonesia", -6.2088, 106.8456], ["Manila, Philippines", 14.5995, 120.9842],
+  ["Ho Chi Minh City, Vietnam", 10.8231, 106.6297], ["Hanoi, Vietnam", 21.0285, 105.8542], ["Singapore, Singapore", 1.3521, 103.8198],
+  ["Kuala Lumpur, Malaysia", 3.1390, 101.6869], ["Dhaka, Bangladesh", 23.8103, 90.4125], ["Karachi, Pakistan", 24.8607, 67.0011],
+  ["Lahore, Pakistan", 31.5204, 74.3587], ["Kolkata, India", 22.5726, 88.3639], ["Chennai, India", 13.0827, 80.2707],
+  ["Bengaluru, India", 12.9716, 77.5946], ["Hyderabad, India", 17.3850, 78.4867], ["Colombo, Sri Lanka", 6.9271, 79.8612],
+  ["Kathmandu, Nepal", 27.7172, 85.3240], ["Kabul, Afghanistan", 34.5553, 69.2075], ["Tehran, Iran", 35.6892, 51.3890],
+  ["Baghdad, Iraq", 33.3152, 44.3661], ["Riyadh, Saudi Arabia", 24.7136, 46.6753], ["Dubai, UAE", 25.2048, 55.2708],
+  ["Doha, Qatar", 25.2854, 51.5310], ["Kuwait City, Kuwait", 29.3759, 47.9774], ["Istanbul, Turkey", 41.0082, 28.9784],
+  ["Tel Aviv, Israel", 32.0853, 34.7818], ["Tashkent, Uzbekistan", 41.2995, 69.2401], ["Almaty, Kazakhstan", 43.2220, 76.8512],
+  ["Ulaanbaatar, Mongolia", 47.8864, 106.9057], ["Yangon, Myanmar", 16.8409, 96.1735], ["Kinshasa, DR Congo", -4.4419, 15.2663],
+  ["Nairobi, Kenya", -1.2921, 36.8219], ["Addis Ababa, Ethiopia", 9.0320, 38.7469], ["Johannesburg, South Africa", -26.2041, 28.0473],
+  ["Cape Town, South Africa", -33.9249, 18.4241], ["Casablanca, Morocco", 33.5731, -7.5898], ["Algiers, Algeria", 36.7538, 3.0588],
+  ["Tunis, Tunisia", 36.8065, 10.1815], ["Accra, Ghana", 5.6037, -0.1870], ["Dakar, Senegal", 14.7167, -17.4677],
+  ["Abidjan, Ivory Coast", 5.3600, -4.0083], ["Khartoum, Sudan", 15.5007, 32.5599], ["Dar es Salaam, Tanzania", -6.7924, 39.2083],
+  ["Luanda, Angola", -8.8390, 13.2894], ["Kampala, Uganda", 0.3476, 32.5825], ["Maputo, Mozambique", -25.9692, 32.5732],
+  ["Lusaka, Zambia", -15.3875, 28.3228], ["Niamey, Niger", 13.5116, 2.1254], ["London, UK", 51.5074, -0.1278],
+  ["Paris, France", 48.8566, 2.3522], ["Madrid, Spain", 40.4168, -3.7038], ["Rome, Italy", 41.9028, 12.4964],
+  ["Berlin, Germany", 52.5200, 13.4050], ["Moscow, Russia", 55.7558, 37.6173], ["Athens, Greece", 37.9838, 23.7275],
+  ["Stockholm, Sweden", 59.3293, 18.0686], ["Warsaw, Poland", 52.2297, 21.0122], ["Lisbon, Portugal", 38.7223, -9.1393],
+  ["Kyiv, Ukraine", 50.4501, 30.5234], ["Reykjavik, Iceland", 64.1466, -21.9426], ["New York, USA", 40.7128, -74.0060],
+  ["Los Angeles, USA", 34.0522, -118.2437], ["Chicago, USA", 41.8781, -87.6298], ["Houston, USA", 29.7604, -95.3698],
+  ["Miami, USA", 25.7617, -80.1918], ["Toronto, Canada", 43.6532, -79.3832], ["Vancouver, Canada", 49.2827, -123.1207],
+  ["Anchorage, USA", 61.2181, -149.9003], ["Havana, Cuba", 23.1136, -82.3666], ["Bogota, Colombia", 4.7110, -74.0721],
+  ["Lima, Peru", -12.0464, -77.0428], ["Santiago, Chile", -33.4489, -70.6693], ["Buenos Aires, Argentina", -34.6037, -58.3816],
+  ["Rio de Janeiro, Brazil", -22.9068, -43.1729], ["Brasilia, Brazil", -15.7975, -47.8919], ["Manaus, Brazil", -3.1190, -60.0217],
+  ["Quito, Ecuador", -0.1807, -78.4678], ["La Paz, Bolivia", -16.4897, -68.1193], ["Caracas, Venezuela", 10.4806, -66.9036],
+  ["Guatemala City, Guatemala", 14.6349, -90.5069], ["Sydney, Australia", -33.8688, 151.2093], ["Melbourne, Australia", -37.8136, 144.9631],
+  ["Perth, Australia", -31.9505, 115.8605], ["Auckland, New Zealand", -36.8509, 174.7645], ["Port Moresby, Papua New Guinea", -9.4438, 147.1803],
+  ["Honolulu, USA", 21.3069, -157.8583]
+];
+
+const Y0 = 1985, Y1 = 2024;
+const API = 'https://power.larc.nasa.gov/api/temporal/monthly/point';
+const SN = ['NORMAL', 'CRT', 'NVG', 'FLIR', 'NOIR'];
+const URLF = c => `${API}?parameters=T2M,T2M_MAX,T2M_MIN&community=RE&longitude=${c[2].toFixed(4)}&latitude=${c[1].toFixed(4)}&start=${Y0}&end=${Y1}&format=JSON`;
+const ML = {
+  tmax: 'Hot-season daytime maximum (T2M_MAX)',
+  tmin: 'Hot-season night-time minimum (T2M_MIN)',
+  t2m: 'Annual mean temperature (T2M)'
+};
+const FEAT = {
+  "Delhi, India": "Concrete and asphalt hold the day's heat, so nights stay warm. Nights are when bodies recover: watch the night minimum.",
+  "Mumbai, India": "The sea caps the worst day extremes, but warm wet air and a dense city that cools slowly make heat feel harsh.",
+  "Phoenix, USA": "A desert city that kept spreading. Pavement gives the heat back after dark: a textbook urban heat island and a yardstick for the rest.",
+  "Dubai, UAE": "A trading port turned tower forest on a hot, humid coast. Summer runs on air conditioning. Watch the nights, not just the days.",
+  "Kuwait City, Kuwait": "One of the hottest large cities on Earth. The question is less whether it is hot and more whether the extremes keep creeping up.",
+  "Karachi, Pakistan": "In June 2015 a heatwave during power cuts reportedly killed over a thousand people. A coastal megacity can be dangerous without record highs.",
+  "Cairo, Egypt": "Dense, shadeless and ringed by desert, so heat lingers. A good test of how nights change in a hot-desert city.",
+  "Lagos, Nigeria": "Hot and humid all year, so the story is nights that rarely cool in one of the fastest-growing cities on Earth.",
+  "Mexico City, Mexico": "About 2,240 m up, never famous for heat, spread over an old lake bed. Is a cool-reputation city warming anyway?",
+  "Sao Paulo, Brazil": "A vast plateau sprawl far from the sea. A fair test of whether a mild-reputation megacity shows a clear signal."
+};
+/* Verified NASA/ESA Orbital Parameters: [Name, Instruments, Altitude km, Inclination deg, Period min, Phase rad] */
+const SATS = [
+  ["TERRA", "EOS AM-1: MODIS, CERES, ASTER", 705, 98.2, 98.9, 0.3],
+  ["AQUA", "EOS PM-1: AIRS, MODIS, CERES", 705, 98.2, 98.8, 2.1],
+  ["SUOMI NPP", "VIIRS: night lights, clouds, SST", 824, 98.7, 101.4, 3.6],
+  ["LANDSAT 9", "OLI-2 & TIRS-2 land imaging", 705, 98.2, 98.9, 4.8],
+  ["GPM", "Dual-frequency precipitation radar", 407, 65.0, 92.6, 1.2],
+  ["ISS", "Crewed orbital laboratory", 408, 51.6, 92.7, 5.5]
+];
+
+let fq = { k: '', q: {}, m: 0 }, satT, satKey = '', satOK = false, satPending = false, hot = null, RK = {}, pend = null, sig = 0;
+const SIMG = document.createElement('div');
+const slowNet = !!(navigator.connection && (navigator.connection.saveData || /2g/.test(navigator.connection.effectiveType || '')));
+const D = {}, $ = id => document.getElementById(id), MONO = 'ui-monospace,Menlo,Consolas,monospace';
+let metric = 'tmax', year = 2024, sel = null, playT = null, tourT = null;
+
+/* ---------- Statistical Engine (Mann-Kendall, Sen's Slope, Lag-1 AR, BH-FDR) ---------- */
+const avg = a => { a = a.filter(Number.isFinite); return a.length ? a.reduce((s, v) => s + v, 0) / a.length : NaN; };
+const med = a => { const s = [...a].sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2; };
+const Phi = z => {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const p = 0.3989423 * Math.exp(-z * z / 2) * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return z > 0 ? 1 - p : p;
+};
+const fp = p => p < 0.001 ? '< 0.001' : p.toFixed(3);
+const sn = n => n.split(',')[0].toUpperCase();
+const id3 = i => 'CT-' + String(i + 1).padStart(3, '0');
+
+function mk(y) {
+  const n = y.length;
+  let S = 0;
+  const sl = [];
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = i + 1; j < n; j++) {
+      S += Math.sign(y[j] - y[i]);
+      sl.push((y[j] - y[i]) / (j - i));
+    }
+  }
+  sl.sort((a, b) => a - b);
+  const N = sl.length, sen = med(sl), t = {};
+  y.forEach(v => t[v] = (t[v] || 0) + 1);
+  let ts = 0;
+  for (const k in t) if (t[k] > 1) ts += t[k] * (t[k] - 1) * (2 * t[k] + 5);
+  const v0 = (n * (n - 1) * (2 * n + 5) - ts) / 18;
+  const res = y.map((v, i) => v - sen * i), m = avg(res);
+  let a = 0, b = 0;
+  res.forEach((r, i) => {
+    b += (r - m) ** 2;
+    if (i < n - 1) a += (r - m) * (res[i + 1] - m);
+  });
+  const r1 = b > 1e-12 ? a / b : 0;
+  const f = r1 > 0 ? (1 + Math.min(r1, 0.95)) / (1 - Math.min(r1, 0.95)) : 1;
+  const out = vr => {
+    const safeVr = Math.max(vr, 1e-9);
+    const z = S ? (S - Math.sign(S)) / Math.sqrt(safeVr) : 0;
+    const Cc = 1.96 * Math.sqrt(safeVr);
+    return {
+      z,
+      p: 2 * (1 - Phi(Math.abs(z))),
+      lo: sl[Math.max(0, Math.floor((N - Cc) / 2) - 1)],
+      hi: sl[Math.min(N - 1, Math.ceil((N + Cc) / 2))]
+    };
+  };
+  return { n, S, sen, r1, f, icpt: med(res), plain: out(v0), corr: out(v0 * f) };
+}
+const MK = (d, k) => (d._m = d._m || {})[k] || (d._m[k] = mk(d[k]));
+
+function proc(j) {
+  const P = j.properties.parameter, ys = [];
+  for (let y = Y0; y <= Y1; y++) ys.push(y);
+  const mo = (k, y, m) => {
+    const v = P[k]['' + y + String(m).padStart(2, '0')];
+    return v > -900 ? v : NaN;
+  };
+  const cm = [...Array(12)].map((_, m) => avg(ys.map(y => mo('T2M', y, m + 1))));
+  let best = 0, bs = -1e9;
+  for (let s = 0; s < 12; s++) {
+    const v = (cm[s] + cm[(s + 1) % 12] + cm[(s + 2) % 12]) / 3;
+    if (v > bs) { bs = v; best = s; }
+  }
+  const ms = [0, 1, 2].map(k => (best + k) % 12 + 1);
+  const se = k => ys.map(y => avg(ms.map(m => mo(k, y, m))));
+  const d = {
+    years: ys,
+    tmax: se('T2M_MAX'),
+    tmin: se('T2M_MIN'),
+    t2m: ys.map(y => avg([...Array(12)].map((_, m) => mo('T2M', y, m + 1)))),
+    months: ms
+  };
+  if (![...d.tmax, ...d.tmin, ...d.t2m].every(Number.isFinite)) throw new Error('Incomplete NASA POWER series');
+  return d;
+}
+
+async function load(c) {
+  const key = 'ed1_' + c[0];
+  try {
+    const z = JSON.parse(localStorage.getItem(key));
+    if (z && Date.now() - Date.parse(z.retrieved) < 6048e5) {
+      z.status = 'CACHED';
+      return z;
+    }
+  } catch (e) {}
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+    const r = await fetch(URLF(c), { signal: ctl.signal });
+    clearTimeout(t);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = proc(await r.json());
+    d.status = 'LIVE';
+    d.retrieved = new Date().toISOString();
+    try { localStorage.setItem(key, JSON.stringify(d)); } catch (e) {}
+    return d;
+  } catch (e) {
+    try {
+      const d = JSON.parse(localStorage.getItem(key));
+      if (d) { d.status = 'CACHED'; return d; }
+    } catch (e2) {}
+    return null;
+  }
+}
+
+let sd = 7;
+const rnd = () => (sd = (sd * 1664525 + 1013904223) % 4294967296) / 4294967296;
+const gau = () => { let s = 0; for (let i = 0; i < 12; i++) s += rnd(); return s - 6; };
+function synth(c) {
+  const ys = [];
+  for (let y = Y0; y <= Y1; y++) ys.push(y);
+  const b = 38 - 0.25 * Math.abs(c[1] - 25);
+  const g = o => {
+    let e = 0;
+    return ys.map((y, i) => { e = 0.4 * e + 0.3 * gau(); return b + o + 0.03 * i + e; });
+  };
+  return { years: ys, tmax: g(0), tmin: g(-12), t2m: g(-7), months: [6, 7, 8], status: 'SYNTHETIC', retrieved: new Date().toISOString() };
+}
+
+const hei = (tx, tn) => 100 * Math.min(1, Math.max(0, 0.5 * (tx - 20) / 20 + 0.5 * (tn - 10) / 20));
+const lvl = p => p < 40 ? 'Low' : p < 60 ? 'Moderate' : p < 80 ? 'High' : 'Severe';
+const last5 = a => avg(a.slice(-5));
+const anom = (d, i) => d[metric][i] - avg(d[metric].slice(0, 10));
+const banner = (t, ms) => {
+  const b = $('banner');
+  b.style.display = t ? 'block' : 'none';
+  b.innerHTML = t;
+  if (ms) setTimeout(() => { if (b.innerHTML === t) b.style.display = 'none'; }, ms);
+};
+
+/* ---------- 3D Globe + Realistic Surface-Anchored Satellite Telemetry Beacons ---------- */
+const FS = `uniform sampler2D t;uniform float m,T;uniform vec2 r;varying vec2 u;
+float h(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
+vec3 iron(float x){x=clamp(x,0.,1.);return vec3(smoothstep(.25,.6,x),smoothstep(.55,.9,x),smoothstep(0.,.3,x)*(1.-smoothstep(.3,.55,x))+smoothstep(.9,1.,x));}
+void main(){vec2 p=u,q=u-.5;vec3 c;
+ if(m==1.){p=.5+q*(1.+dot(q,q)*.14);float s=.0022;c=vec3(texture2D(t,p+vec2(s,0.)).r,texture2D(t,p).g,texture2D(t,p-vec2(s,0.)).b);c*=.8+.2*sin(p.y*r.y*1.7+T*9.);c*=1.-dot(q,q)*1.3;if(p.x<0.||p.x>1.||p.y<0.||p.y>1.)c=vec3(0.);}
+ else{c=texture2D(t,p).rgb;float L=dot(c,vec3(.3,.59,.11));
+  if(m==2.){c=vec3(.08,1.,.25)*(L*1.7+.03)+(h(p*r+T)-.5)*.14*vec3(0.,1.,.3);c*=1.-dot(q,q)*.9;}
+  else if(m==3.){c=iron(pow(L,.75)*1.2);}
+  else if(m==4.){L=smoothstep(.06,.8,L);c=vec3(L)*(1.-dot(q,q)*.6);}}
+ gl_FragColor=vec4(c,1.);}`;
+
+let ren, RT, scene, cam, grp, earth, clouds, ovl, mks = [], MKN = {}, sats = [], rings = [];
+let camZ = 3.6, tgt = null, drag = false, glOK = false, landing = true, gy = -2.1, gs = 1.9;
+let stars, pm, scene2, cam2, ptrs = new Map(), pd = 0, trk = null, sens = 0;
+let L = { c: 1, s: 1, o: 0, d: 1 }, ovK = 'off', last = Date.now(), fr = 0, dc, dg;
+
+const cz = z => Math.max(landing ? 2.6 : 1.35, Math.min(landing ? 6 : 8, z));
+const zoom = d => { camZ = cz(camZ * (d > 0 ? 1.25 : 0.8)); };
+const ll = (la, lo, R) => {
+  const p = (90 - la) * Math.PI / 180;
+  const t = (lo + 180) * Math.PI / 180;
+  return new THREE.Vector3(-R * Math.sin(p) * Math.cos(t), R * Math.cos(p), R * Math.sin(p) * Math.sin(t));
+};
+
+function occl(v, R) {
+  const d = v.clone().sub(cam.position), Ln = d.length();
+  d.normalize();
+  const b = cam.position.dot(d), c = cam.position.lengthSq() - R * R, ds = b * b - c;
+  if (ds <= 0) return false;
+  const t = -b - Math.sqrt(ds);
+  return t > 0 && t < Ln - 0.001;
+}
+
+/* Generates a realistic orbital telemetry beacon texture (pinpoint core + subtle thermal corona + fine radar ring) */
+function createBeaconTexture() {
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext('2d');
+  const cx = size / 2;
+
+  const grad = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+  grad.addColorStop(0.12, 'rgba(255, 255, 255, 0.92)');
+  grad.addColorStop(0.28, 'rgba(255, 255, 255, 0.30)');
+  grad.addColorStop(0.60, 'rgba(255, 255, 255, 0.05)');
+  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(cx, cx, cx * 0.54, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.80)';
+  ctx.lineWidth = 1.4;
+  const rIn = cx * 0.62, rOut = cx * 0.78;
+  [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * rIn, cx + dy * rIn);
+    ctx.lineTo(cx + dx * rOut, cx + dy * rOut);
+    ctx.stroke();
+  });
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function setSens(i) {
+  sens = i;
+  if (pm) pm.uniforms.m.value = i;
+  [...$('sg').children].forEach((b, k) => b.classList.toggle('on', k === i));
+}
+
+function vis() {
+  mks.forEach(m => m.visible = !!L.c && !landing);
+  sats.forEach(s => s.m.visible = !!L.s);
+  rings.forEach(r => r.visible = false);
+}
+
+function setOvl(k) {
+  ovK = k;
+  $('ov').value = k;
+  if (!glOK) return;
+  if (k === 'off') { ovl.visible = false; return; }
+  const dt = new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 10);
+  const g = (l, f, t) => `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${l}&STYLES=&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=2048&HEIGHT=1024&FORMAT=${f}&TRANSPARENT=${f === 'image/png'}${t ? '&TIME=' + dt : ''}`;
+  const u = k === 'lst' ? g('MODIS_Terra_Land_Surface_Temp_Day', 'image/png', 1) : g('VIIRS_Black_Marble', 'image/jpeg', 0);
+  const tl = new THREE.TextureLoader();
+  tl.setCrossOrigin('anonymous');
+  banner('Loading NASA GIBS layer...');
+  tl.load(u, t => {
+    if (ovK !== k) return;
+    ovl.material.map = t;
+    ovl.material.blending = k === 'nl' ? THREE.AdditiveBlending : THREE.NormalBlending;
+    ovl.material.opacity = k === 'nl' ? 1 : 0.85;
+    ovl.material.needsUpdate = true;
+    ovl.visible = true;
+    banner('');
+  }, undefined, () => banner('NASA GIBS layer unavailable (offline or no data).', 4000));
+}
+
+function initGL() {
+  if (!window.THREE) {
+    banner('3D engine failed to load. Check your connection.');
+    return;
+  }
+  try {
+    ren = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: false });
+    const pr = Math.min(devicePixelRatio, 2);
+    ren.setPixelRatio(pr);
+    ren.setSize(innerWidth, innerHeight);
+
+    const RC = ren.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget ? THREE.WebGLMultisampleRenderTarget : THREE.WebGLRenderTarget;
+    RT = new RC(innerWidth * pr, innerHeight * pr, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+
+    pm = new THREE.ShaderMaterial({
+      uniforms: {
+        t: { value: RT.texture },
+        m: { value: 0 },
+        T: { value: 0 },
+        r: { value: new THREE.Vector2(innerWidth * pr, innerHeight * pr) }
+      },
+      vertexShader: 'varying vec2 u;void main(){u=uv;gl_Position=vec4(position.xy,0.,1.);}',
+      fragmentShader: FS
+    });
+    scene2 = new THREE.Scene();
+    cam2 = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    scene2.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), pm));
+
+    scene = new THREE.Scene();
+    cam = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 300);
+    cam.position.z = 3;
+    camZ = 3;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+    const Lt = new THREE.DirectionalLight(0xfff2dd, 1.4);
+    Lt.position.set(5, 2, 4);
+    scene.add(Lt);
+
+    const tl = new THREE.TextureLoader();
+    tl.setCrossOrigin('anonymous');
+    const T = 'https://threejs.org/examples/textures/planets/';
+    const mx = ren.capabilities.getMaxAnisotropy();
+    const U = { D: { value: null }, N: { value: null }, S: { value: null }, sun: { value: new THREE.Vector3(5, 2, 4) } };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: U,
+      vertexShader: 'varying vec2 q;varying vec3 nw;varying vec3 pw;void main(){q=uv;nw=normalize(mat3(modelMatrix)*normal);pw=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(pw,1.);}',
+      fragmentShader: `uniform sampler2D D,N,S;uniform vec3 sun;varying vec2 q;varying vec3 nw;varying vec3 pw;
+void main(){vec3 n=normalize(nw),l=normalize(sun),v=normalize(cameraPosition-pw);float d=dot(n,l),k=smoothstep(-.1,.3,d);
+ vec3 day=texture2D(D,q).rgb,nl=texture2D(N,q).rgb;float sp=texture2D(S,q).r;
+ vec3 c=day*(.05+1.1*max(d,0.))*mix(.35,1.,k);c+=nl*vec3(1.,.72,.38)*1.5*(1.-k);
+ vec3 h=normalize(l+v);c+=vec3(.8,.9,1.)*pow(max(dot(n,h),0.),70.)*sp*.8*k;
+ c+=vec3(.25,.45,1.)*pow(1.-max(dot(n,v),0.),3.)*.35*(.25+.75*k);gl_FragColor=vec4(c,1.);}`
+    });
+
+    const ld = (u, k, f) => tl.load(u, t => { t.anisotropy = mx; U[k].value = t; }, undefined, f);
+    ld('https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=BlueMarble_NextGeneration&STYLES=&SRS=EPSG:4326&BBOX=-180,-90,180,90&WIDTH=4096&HEIGHT=2048&FORMAT=image/jpeg', 'D', () => ld(T + 'earth_atmos_2048.jpg', 'D'));
+    ld(T + 'earth_lights_2048.png', 'N');
+    ld(T + 'earth_specular_2048.jpg', 'S');
+
+    grp = new THREE.Group();
+    grp.rotation.x = 0.25;
+    grp.position.y = gy;
+    grp.scale.setScalar(gs);
+    scene.add(grp);
+
+    earth = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 96), mat);
+    grp.add(earth);
+
+    ovl = new THREE.Mesh(new THREE.SphereGeometry(1.004, 64, 64), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
+    ovl.visible = false;
+    grp.add(ovl);
+
+    const cm = new THREE.MeshPhongMaterial({ transparent: true, opacity: 0, depthWrite: false });
+    tl.load(T + 'earth_clouds_1024.png', t => { cm.map = t; cm.opacity = 0.4; cm.needsUpdate = true; });
+    clouds = new THREE.Mesh(new THREE.SphereGeometry(1.012, 64, 64), cm);
+    grp.add(clouds);
+
+    grp.add(new THREE.Mesh(new THREE.SphereGeometry(1.12, 64, 64), new THREE.ShaderMaterial({
+      transparent: true,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      vertexShader: 'varying vec3 n;varying vec3 w;void main(){n=normalize(mat3(modelMatrix)*normal);w=(modelMatrix*vec4(position,1.)).xyz;gl_Position=projectionMatrix*viewMatrix*vec4(w,1.);}',
+      fragmentShader: 'varying vec3 n;varying vec3 w;void main(){float i=pow(clamp(-dot(n,normalize(cameraPosition-w))/.4,0.,1.),2.5);gl_FragColor=vec4(vec3(.3,.55,1.)*i*1.8,i);}'
+    })));
+
+    const NS = 2200, sp = new Float32Array(NS * 3);
+    for (let i = 0; i < NS; i++) {
+      const u = rnd() * 2 - 1, t = rnd() * 6.283, q = Math.sqrt(1 - u * u);
+      sp[i * 3] = 90 * q * Math.cos(t);
+      sp[i * 3 + 1] = 90 * u;
+      sp[i * 3 + 2] = 90 * q * Math.sin(t);
+    }
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+    stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.5, sizeAttenuation: false, color: 0xcfdcff, transparent: true, opacity: 0.8, depthWrite: false }));
+    scene.add(stars);
+
+    /* Realistic Surface-Anchored Satellite Telemetry Beacons */
+    const beaconTex = createBeaconTexture();
+    const beaconGeo = new THREE.PlaneGeometry(0.032, 0.032);
+
+    C.forEach(c => {
+      const pos = ll(c[1], c[2], 1.005);
+      const normal = pos.clone().normalize();
+      const beaconMat = new THREE.MeshBasicMaterial({
+        map: beaconTex,
+        color: 0x7a96a8,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+      const m = new THREE.Mesh(beaconGeo, beaconMat);
+      m.position.copy(pos);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+      m.userData.n = c[0];
+      m.userData.k = 1;
+      grp.add(m);
+      m.visible = false;
+      mks.push(m);
+      MKN[c[0]] = m;
+    });
+
+    const M = o => new THREE.MeshPhongMaterial(o);
+    const gold = M({ color: 0xd2ac52, specular: 0xfff0b0, shininess: 70 });
+    const sol = M({ color: 0x16327a, specular: 0x5577bb, shininess: 110, side: THREE.DoubleSide });
+    SATS.forEach(s => {
+      const r = 1 + s[2] / 6371 * 2.6, og = new THREE.Group();
+      og.rotation.order = 'YXZ';
+      og.rotation.set(s[3] * Math.PI / 180, s[5], 0);
+      scene.add(og);
+      const ring = new THREE.LineLoop(
+        new THREE.BufferGeometry().setFromPoints(Array.from({ length: 128 }, (_, i) => new THREE.Vector3(Math.cos(i / 128 * 6.2832) * r, 0, Math.sin(i / 128 * 6.2832) * r))),
+        new THREE.LineBasicMaterial({ color: 0x5fd6ff, transparent: true, opacity: 0.22 })
+      );
+      og.add(ring);
+      rings.push(ring);
+      const m = new THREE.Group();
+      m.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.04), gold));
+      [-1, 1].forEach(k => {
+        const w = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.04, 0.04), sol);
+        w.position.y = k * 0.04;
+        m.add(w);
+      });
+      og.add(m);
+      sats.push({ n: s[0], d: s[1], alt: s[2], inc: s[3], per: s[4], m, og, r, a: s[5] * 2, w: 6.2832 / (s[4] * 60) * 120, sx: -1e4, sy: -1e4 });
+    });
+
+    dc = $('det');
+    dg = dc.getContext('2d');
+    glOK = true;
+    vis();
+    sizeDet();
+
+    const cv = $('gl');
+    let sx, sy, mv = 0;
+    cv.addEventListener('pointerdown', e => {
+      ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      drag = true;
+      mv = 0;
+      sx = e.clientX;
+      sy = e.clientY;
+      tgt = null;
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointermove', e => {
+      if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pd) camZ = cz(camZ * pd / d);
+        pd = d;
+        mv = 99;
+        return;
+      }
+      if (drag) {
+        const dx = e.clientX - sx, dy = e.clientY - sy;
+        mv += Math.abs(dx) + Math.abs(dy);
+        sx = e.clientX;
+        sy = e.clientY;
+        grp.rotation.y += dx * 0.005 * Math.min(1, camZ / 2.5);
+        grp.rotation.x = Math.max(-1.2, Math.min(1.2, grp.rotation.x + dy * 0.005 * Math.min(1, camZ / 2.5)));
+      } else hover(e);
+    });
+    cv.addEventListener('pointerup', e => {
+      ptrs.delete(e.pointerId);
+      pd = 0;
+      drag = false;
+      if (mv < 5) {
+        const h = pick(e);
+        if (h) h.s ? showSat(h.s) : openCase(h.n);
+      }
+    });
+    cv.addEventListener('wheel', e => { e.preventDefault(); camZ = cz(camZ + e.deltaY * 0.003); }, { passive: false });
+    cv.addEventListener('pointercancel', e => { ptrs.delete(e.pointerId); pd = 0; drag = false; });
+
+    addEventListener('resize', () => {
+      const p = Math.min(devicePixelRatio, 2);
+      cam.aspect = innerWidth / innerHeight;
+      cam.updateProjectionMatrix();
+      ren.setSize(innerWidth, innerHeight);
+      RT.setSize(innerWidth * p, innerHeight * p);
+      pm.uniforms.r.value.set(innerWidth * p, innerHeight * p);
+      sizeDet();
+    });
+
+    (function loop() {
+      requestAnimationFrame(loop);
+      const now = Date.now(), dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      fr++;
+      if (tgt) {
+        const d = (((tgt.y - grp.rotation.y + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+        grp.rotation.y += d * 0.06;
+        grp.rotation.x += (tgt.x - grp.rotation.x) * 0.06;
+      } else if (!drag && !sel) {
+        grp.rotation.y += landing ? 0.0014 : 0.0006;
+      }
+      clouds.rotation.y += 0.0002;
+      grp.position.y += (gy - grp.position.y) * 0.05;
+      grp.scale.setScalar(grp.scale.x + (gs - grp.scale.x) * 0.05);
+      stars.rotation.y += 0.00006;
+      cam.position.z += (camZ - cam.position.z) * 0.06;
+
+      sats.forEach(s => {
+        s.a += dt * s.w;
+        s.m.position.set(Math.cos(s.a) * s.r, 0, Math.sin(s.a) * s.r);
+        s.m.rotation.y = -s.a;
+      });
+
+      const zoomScale = Math.max(0.45, Math.min(1.2, cam.position.z / 3.4));
+      mks.forEach(m => {
+        const isSel = m.userData.n === sel;
+        const isHot = m.userData.n === hot;
+        const pulse = isSel ? 1.5 + 0.2 * Math.sin(now / 240) : isHot ? 1.3 : 1.0;
+        m.scale.setScalar(m.userData.k * pulse * zoomScale);
+      });
+
+      pm.uniforms.T.value = (now / 1000) % 1000;
+      ren.setRenderTarget(RT);
+      ren.render(scene, cam);
+      ren.setRenderTarget(null);
+      ren.render(scene2, cam2);
+      overlay(now / 1000);
+      if (fr % 8 === 0) hud();
+    })();
+  } catch (e) {
+    glOK = false;
+    banner('WebGL is unavailable in this browser. Data panels still work.');
+  }
+}
+
+function sizeDet() {
+  const p = Math.min(devicePixelRatio, 2);
+  dc.width = innerWidth * p;
+  dc.height = innerHeight * p;
+  dg.setTransform(p, 0, 0, p, 0, 0);
+}
+
+function scr(m, R) {
+  const v = new THREE.Vector3();
+  m.getWorldPosition(v);
+  if (occl(v, R)) return null;
+  v.project(cam);
+  return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight];
+}
+
+function lab(g, x, y, t, col) {
+  const w = g.measureText(t).width + 10;
+  g.fillStyle = 'rgba(2, 8, 14, 0.82)';
+  g.fillRect(x, y, w, 17);
+  g.fillStyle = col;
+  g.fillRect(x, y, 2, 17);
+  g.fillText(t, x + 7, y + 3);
+}
+
+function overlay(T) {
+  const g = dg, W = innerWidth, H = innerHeight;
+  g.clearRect(0, 0, W, H);
+  if (landing) return;
+  g.font = '11.5px ' + MONO;
+  g.textBaseline = 'top';
+  const near = camZ < 1.9, tops = Object.keys(RK).filter(k => RK[k] <= 5 && k !== 'N'), LB = [];
+
+  mks.forEach(m => {
+    m.userData.sx = null;
+    if (!m.visible) return;
+    const p = scr(m, 0.985);
+    if (!p || p[0] < -20 || p[0] > W + 20 || p[1] < -20 || p[1] > H + 20) return;
+    m.userData.sx = p;
+    const n = m.userData.n, d = D[n];
+    if (!L.d) return;
+    const col = '#' + m.material.color.getHexString();
+    const sz = (near ? 8 : 5.5) + (m.userData.k - 1) * 5;
+    const fl = n === sel || n === hot || FEAT[n] || tops.includes(n) || near;
+    if (!fl) return;
+    g.strokeStyle = col;
+    g.lineWidth = n === sel ? 1.8 : 1;
+    g.strokeRect(p[0] - sz, p[1] - sz, sz * 2, sz * 2);
+    LB.push({
+      x: p[0] + sz + 6,
+      y: p[1] - 8,
+      c: n === hot ? '#ff6b6b' : n === sel ? '#f0a43a' : '#cfe8ff',
+      pr: n === sel ? 0 : n === hot ? 1 : tops.includes(n) ? 2 : FEAT[n] ? 3 : 4,
+      t: `${id3(C.findIndex(c => c[0] === n))} ${sn(n)}${d ? ' ' + (anom(d, year - Y0) >= 0 ? '+' : '') + anom(d, year - Y0).toFixed(1) + 'C' : ''}`
+    });
+  });
+
+  if (L.s) {
+    sats.forEach(s => {
+      s.sx = null;
+      const p = scr(s.m, 0.99);
+      if (!p) return;
+      s.sx = p;
+      g.strokeStyle = '#5fd6ff';
+      g.save();
+      g.translate(p[0], p[1]);
+      g.rotate(0.785);
+      g.strokeRect(-4, -4, 8, 8);
+      g.restore();
+      LB.push({ x: p[0] + 11, y: p[1] - 9, c: '#5fd6ff', pr: 2, t: s.n });
+    });
+  }
+
+  const m = sel && MKN[sel], p = m && m.userData.sx;
+  if (p) {
+    g.save();
+    g.translate(p[0], p[1]);
+    g.rotate(T * 0.9);
+    g.strokeStyle = '#f0a43a';
+    g.lineWidth = 1.8;
+    const r = 20 + 2.5 * Math.sin(T * 4);
+    for (let i = 0; i < 4; i++) {
+      g.rotate(1.5708);
+      g.beginPath();
+      g.moveTo(r, -7);
+      g.lineTo(r, -r);
+      g.lineTo(7, -r);
+      g.stroke();
+    }
+    g.restore();
+    LB.push({ x: p[0] + 28, y: p[1] + 18, c: '#f0a43a', pr: 0, t: 'TRACKING ' + id3(C.findIndex(c => c[0] === sel)) });
+  }
+
+  const used = [];
+  LB.sort((a, b) => a.pr - b.pr).forEach(l => {
+    const w = g.measureText(l.t).width + 10;
+    if (l.x + w > W - 6) return;
+    if (used.length >= 14) return;
+    const hit = used.some(u => l.x < u[0] + u[2] + 4 && l.x + w + 4 > u[0] && l.y < u[1] + 21 && l.y + 21 > u[1]);
+    if (hit) return;
+    used.push([l.x, l.y, w]);
+    lab(g, l.x, l.y, l.t, l.c);
+  });
+}
+
+function pick(e) {
+  if (landing) return null;
+  let b = null, bd = 16;
+  mks.forEach(m => {
+    const p = m.userData.sx;
+    if (!p || !m.visible) return;
+    const d = Math.hypot(p[0] - e.clientX, p[1] - e.clientY);
+    if (d < bd) { bd = d; b = { n: m.userData.n }; }
+  });
+  if (L.s) {
+    sats.forEach(s => {
+      if (!s.sx) return;
+      const d = Math.hypot(s.sx[0] - e.clientX, s.sx[1] - e.clientY);
+      if (d < bd) { bd = d; b = { s }; }
+    });
+  }
+  return b;
+}
+
+function hover(e) {
+  if (!glOK) return;
+  const h = pick(e), t = $('tip');
+  if (!h) { t.style.display = 'none'; return; }
+  const n = h.n, d = D[n];
+  t.style.display = 'block';
+  t.style.left = e.clientX + 14 + 'px';
+  t.style.top = e.clientY + 10 + 'px';
+  t.textContent = h.s
+    ? `${h.s.n} | ${h.s.d}`
+    : n + (d ? ` | ${year}: ${anom(d, year - Y0) >= 0 ? '+' : ''}${anom(d, year - Y0).toFixed(1)} \u00b0C` : ' | loading telemetry');
+}
+
+function showSat(s) {
+  vis();
+  rings[sats.indexOf(s)].visible = true;
+  setTimeout(vis, 9000);
+  const e = $('satc');
+  e.style.display = 'block';
+  e.innerHTML = `<div class="lb" style="color:var(--c)">Orbital asset</div><b style="font-size:14px">${s.n}</b><br>${s.d}<br>ALT ${s.alt} km | INC ${s.inc}° | PERIOD ${s.per} min<br><span style="color:var(--mute)">Orbit drawn illustratively (circular, exaggerated height, 120x speed). Not a live track.</span>`;
+  setTimeout(() => e.style.display = 'none', 9000);
+}
+
+function track() {
+  if (!glOK) return;
+  if (trk) { grp.remove(trk); trk.geometry.dispose(); trk = null; }
+  if (!sel || !hot || sel === hot) return;
+  const a = C.find(c => c[0] === sel), b = C.find(c => c[0] === hot);
+  const va = ll(a[1], a[2], 1).normalize(), vb = ll(b[1], b[2], 1).normalize();
+  const g = va.angleTo(vb) || 0.01, P = [];
+  for (let i = 0; i <= 64; i++) {
+    const t = i / 64, s = Math.sin(g);
+    const p = va.clone().multiplyScalar(Math.sin((1 - t) * g) / s).add(vb.clone().multiplyScalar(Math.sin(t * g) / s));
+    P.push(p.normalize().multiplyScalar(1.01 + 0.1 * Math.sin(Math.PI * t) * Math.min(1, g)));
+  }
+  trk = new THREE.Line(new THREE.BufferGeometry().setFromPoints(P), new THREE.LineBasicMaterial({ color: 0xff3b3b }));
+  grp.add(trk);
+}
+
+function paint() {
+  mks.forEach(m => {
+    const d = D[m.userData.n];
+    m.userData.k = 1;
+    if (!d) {
+      m.material.color.set(0x7a96a8);
+      return;
+    }
+    const a = anom(d, year - Y0), t = Math.max(0, Math.min(1, a / 2.5));
+    m.material.color.setHSL(0.56 * (1 - t), 0.88, 0.56);
+    m.userData.k = 1 + t * 0.5;
+  });
+}
+
+function hud() {
+  if (!glOK || landing) return;
+  const n = new THREE.Vector3(0, 0, 1).applyQuaternion(grp.quaternion.clone().invert()).normalize();
+  const la = Math.asin(Math.max(-1, Math.min(1, n.y))) * 57.2958;
+  let lo = Math.atan2(n.z, -n.x) * 57.2958 - 180;
+  lo = ((lo + 540) % 360) - 180;
+  $('hbl').innerHTML = `SENSOR ${SN[sens]}<br>LAT ${la.toFixed(2)}° LON ${lo.toFixed(2)}°<br>ALT ${Math.round((camZ - 1) * 6371).toLocaleString()} KM`;
+  $('hr').innerHTML = new Date().toISOString().slice(0, 19).replace('T', ' ') + ' UTC<br><span style="color:var(--r)">●</span> REC';
+  $('hbr').innerHTML = `CLEAR SIGNALS ${sig}<br>${hot ? 'HOTSPOT <span style="color:#ff6b6b">' + sn(hot) + '</span>' : ''}`;
+}
+
+/* ---------- UI & Dossier ---------- */
+function rank() {
+  const r = C.filter(c => D[c[0]]).map(c => ({ n: c[0], s: MK(D[c[0]], metric).sen * 10 })).sort((a, b) => b.s - a.s);
+  RK = {};
+  r.forEach((x, i) => RK[x.n] = i + 1);
+  RK.N = r.length;
+  const h = r[0] ? r[0].n : null;
+  if (h !== hot) { hot = h; track(); }
+  const q = fdr();
+  sig = r.filter(x => q[x.n] < 0.05 && x.s > 0).length;
+}
+
+function list() {
+  const q = ($('q').value || '').toLowerCase(), so = $('so').value;
+  const rows = C.map((c, i) => ({ c, i, d: D[c[0]] })).filter(r => r.c[0].toLowerCase().includes(q) && (so !== 'story' || FEAT[r.c[0]]));
+  rows.forEach(r => r.t = r.d ? MK(r.d, metric).sen * 10 : null);
+  if (so === 'warm') rows.sort((a, b) => (b.t === null ? -99 : b.t) - (a.t === null ? -99 : a.t));
+  else if (so === 'az') rows.sort((a, b) => a.c[0].localeCompare(b.c[0]));
+  $('cl').innerHTML = rows.map(r => `<button class="it ${sel === r.c[0] ? 'on' : ''}" onclick="openCase(C[${r.i}][0])"><span><small>${id3(r.i)}</small><br>${FEAT[r.c[0]] ? '★ ' : ''}${r.c[0]}</span><span style="text-align:right"><small class="${r.d ? r.d.status : ''}">${r.d ? r.d.status : r.d === null ? 'NO DATA' : 'QUEUED'}</small><br>${r.t === null ? '' : (r.t >= 0 ? '+' : '') + r.t.toFixed(2) + '/dec'}</span></button>`).join('') || '<p style="padding:14px" class="lb">No match</p>';
+}
+
+function openCase(n) {
+  sel = n;
+  const c = C.find(x => x[0] === n);
+  $('dossier').classList.add('open');
+  document.body.classList.add('dos');
+  if (glOK) {
+    const p = ll(c[1], c[2], 1), a = Math.atan2(p.x, p.z);
+    tgt = { y: -a, x: c[1] * Math.PI / 180 };
+    camZ = 2.5;
+  }
+  ensure(c);
+  SIMG.innerHTML = '<p class="lb" style="margin:12px 0">Loading satellite view...</p>';
+  satKey = '';
+  track();
+  dossier();
+  list();
+}
+
+function step(d) {
+  const ks = Object.keys(RK).filter(k => k !== 'N').sort((a, b) => RK[a] - RK[b]);
+  if (!ks.length) return;
+  const i = sel ? ks.indexOf(sel) : -1;
+  openCase(ks[(i + d + ks.length) % ks.length]);
+}
+
+function chart(ys, vs, r, yi) {
+  const W = 380, H = 180, p = { l: 36, r: 8, t: 8, b: 22 };
+  const mn = Math.min(...vs), mx = Math.max(...vs), pd = (mx - mn) * 0.1 || 0.5, lo = mn - pd, hi = mx + pd;
+  const X = i => p.l + i * (W - p.l - p.r) / (ys.length - 1);
+  const Y = v => H - p.b - (v - lo) * (H - p.t - p.b) / (hi - lo);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Temperature by year with trend line">`;
+  for (let k = 0; k <= 3; k++) {
+    const v = lo + (hi - lo) * k / 3;
+    s += `<line x1="${p.l}" x2="${W - p.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#fff2"/><text x="${p.l - 4}" y="${Y(v) + 3}" text-anchor="end" fill="#3fe0c5" font-size="11">${v.toFixed(1)}</text>`;
+  }
+  ys.forEach((y, i) => {
+    if (i % 10 === 0) s += `<text x="${X(i)}" y="${H - 6}" text-anchor="middle" fill="#3fe0c5" font-size="11">${y}</text>`;
+  });
+  s += `<line x1="${X(yi)}" x2="${X(yi)}" y1="${p.t}" y2="${H - p.b}" stroke="#f0a43a" stroke-opacity=".5"/><polyline fill="none" stroke="#dfe6ea" stroke-width="1.4" points="${vs.map((v, i) => X(i) + ',' + Y(v)).join(' ')}"/>`;
+  s += `<line x1="${X(0)}" y1="${Y(r.icpt)}" x2="${X(ys.length - 1)}" y2="${Y(r.icpt + r.sen * (ys.length - 1))}" stroke="#ff3b3b" stroke-width="1.6" stroke-dasharray="5 4"/><circle cx="${X(yi)}" cy="${Y(vs[yi])}" r="4" fill="#f0a43a"/></svg>`;
+  return s;
+}
+
+function fdr() {
+  const nm = C.map(c => c[0]).filter(n => D[n]), k = metric + nm.length + nm.map(n => D[n].status[0]).join('');
+  if (fq.k === k) return fq.q;
+  const ps = nm.map(n => ({ n, p: MK(D[n], metric).corr.p })).sort((a, b) => a.p - b.p);
+  const m = ps.length, q = {};
+  let pv = 1;
+  for (let i = m - 1; i >= 0; i--) {
+    pv = Math.min(pv, ps[i].p * m / (i + 1));
+    q[ps[i].n] = Math.min(1, pv);
+  }
+  fq = { k, q, m };
+  return q;
+}
+
+const satDt = d => Math.max(2001, year) + '-' + String(d.months[1] || 7).padStart(2, '0') + '-15';
+function satDelay(ms) { clearTimeout(satT); satPending = true; satT = setTimeout(() => { satPending = false; satLoad(); }, ms); }
+function satDone(i, ok) {
+  i.dataset.s = ok ? 'ok' : 'err';
+  if (!ok) i.style.display = 'none';
+  const p = i.parentNode, k = [...p.children].filter(x => x.tagName === 'IMG');
+  if (k.every(x => x.dataset.s)) {
+    p.classList.remove('ld');
+    if (k.every(x => x.dataset.s === 'err')) p.dataset.err = 1;
+  }
+}
+
+function satLoad() {
+  if (!sel || !D[sel]) return;
+  const c = C.find(x => x[0] === sel), d = D[sel], dt = satDt(d), key = sel + dt;
+  if (key === satKey) return;
+  satKey = key;
+  if (slowNet && !satOK) {
+    SIMG.innerHTML = '<button class="lb" style="color:var(--a);margin:10px 0" onclick="satOK=true;satKey=\'\';satLoad()">LOAD SATELLITE VIEW (uses mobile data)</button>';
+    return;
+  }
+  const bb = [c[2] - 0.5, c[1] - 0.5, c[2] + 0.5, c[1] + 0.5].map(v => v.toFixed(3)).join(',');
+  const u = (l, f) => `https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=${l}&STYLES=&SRS=EPSG:4326&BBOX=${bb}&WIDTH=512&HEIGHT=512&FORMAT=${f}&TRANSPARENT=${f === 'image/png'}&TIME=${dt}`;
+  const b = u('MODIS_Terra_CorrectedReflectance_TrueColor', 'image/jpeg');
+  const o = u('MODIS_Terra_Land_Surface_Temp_Day', 'image/png');
+  const wv = `https://worldview.earthdata.nasa.gov/?v=${bb}&l=MODIS_Terra_Land_Surface_Temp_Day,MODIS_Terra_CorrectedReflectance_TrueColor&t=${dt}`;
+  const A = t => t.replace(/&/g, '&');
+  SIMG.innerHTML = `<div class="lb" style="margin:12px 0 6px">Sensor view | MODIS/Terra | ${dt}</div><div class="sw ld"><img src="${A(b)}" alt="" onload="satDone(this,1)" onerror="satDone(this,0)"><img class="ov" src="${A(o)}" alt="MODIS land surface temperature around ${c[0]} on ${dt}" onload="satDone(this,1)" onerror="satDone(this,0)"></div>
+  <p style="color:var(--mute);margin:6px 0">True colour with daytime land-surface temperature on top (warmer = hotter ground). About 110 km wide, centred on the city, on the 15th of the middle hot-season month. Picture only: not used in the statistics.</p>
+  <a class="lb" style="color:var(--a)" href="${A(wv)}" target="_blank" rel="noopener">OPEN IN NASA WORLDVIEW →</a>
+  <details><summary>IMAGE PROVENANCE</summary><p>NASA GIBS WMS. Layers MODIS_Terra_CorrectedReflectance_TrueColor and MODIS_Terra_Land_Surface_Temp_Day, ${dt}.</p><p><code>${A(o)}</code></p></details>`;
+  setTimeout(() => { const w = SIMG.querySelector('.sw.ld'); if (w) w.dataset.slow = 1; }, 20000);
+}
+
+function dossier() {
+  const el = $('dossier');
+  if (!sel) return;
+  const i = C.findIndex(c => c[0] === sel), c = C[i], d = D[sel];
+  const x = '<button class="x" onclick="reset()" aria-label="Close">×</button>';
+  if (!d) {
+    el.innerHTML = x + `<div class="lb">Contact ${id3(i)}</div><h2>${c[0]}</h2><p>${d === undefined ? 'Retrieving evidence from NASA POWER...' : 'No evidence could be retrieved and none is cached. Connect to the internet once.'}</p>`;
+    return;
+  }
+  const r = MK(d, metric), qv = fdr()[sel], M = fq.m, sg = qv < 0.05, up = r.sen > 0;
+  const tx = last5(d.tmax), tn = last5(d.tmin), rx = MK(d, 'tmax'), rn = MK(d, 'tmin');
+  const h = hei(tx, tn), h35 = hei(tx + rx.sen * 13, tn + rn.sen * 13), a = anom(d, year - Y0);
+  const st = FEAT[sel] ? `<div class="story"><span class="lb">Field notes</span><p>${FEAT[sel]}</p><p style="color:var(--mute)">In the data: 2020-24 hot-season days average ${tx.toFixed(1)} °C and nights ${tn.toFixed(1)} °C.</p></div>` : '';
+  const hs = hot && hot !== sel && D[hot]
+    ? `<div class="rk">Rank <b>${RK[sel]}</b> of ${RK.N} by warming rate. The red arc links this contact to the hotspot, <b>${hot}</b>, which warms ${((MK(D[hot], metric).sen - r.sen) * 10).toFixed(2)} °C/decade faster.</div>`
+    : `<div class="rk">Rank <b>${RK[sel] || '-'}</b> of ${RK.N || '-'} by warming rate${hot === sel ? '. This contact is the current hotspot.' : '.'}</div>`;
+  const alibi = r.plain.p < 0.05 && !sg ? ' A simple trend test would call this a trend, but after the corrections it is not clear yet.' : '';
+  el.innerHTML = x + `<div class="lb">Tracked target ${id3(i)} | <span class="${d.status}">${d.status}</span></div><h2>${c[0]}</h2>
+  <div class="stamp" style="color:${sg ? (up ? 'var(--r)' : 'var(--c)') : 'var(--mute)'}">${sg ? (up ? 'CLEAR WARMING SIGNAL' : 'CLEAR COOLING SIGNAL') : 'NOT CLEAR YET'}</div>
+  <p style="color:var(--ink)">${sg ? `Temperatures here are ${up ? 'rising' : 'falling'} by about ${Math.abs(r.sen * 10).toFixed(2)} °C per decade, too steady to be down to chance.` : `Temperatures moved about ${(r.sen * 10).toFixed(2)} °C per decade, but year-to-year swings are too big to be sure it is a real trend.`}</p>${hs}
+  <p><b>Evidence:</b> ${ML[metric]} changed by <b>${(r.sen * 10 >= 0 ? '+' : '') + (r.sen * 10).toFixed(2)} °C per decade</b> (95% CI ${(r.corr.lo * 10).toFixed(2)} to ${(r.corr.hi * 10).toFixed(2)}), ${Y0}-${Y1}. After correcting for year-to-year persistence, p = ${fp(r.corr.p)}. Because ${M} contacts are tested at once, the false-discovery-adjusted q = ${fp(qv)}; a signal is clear only when q is below 0.05.${alibi}</p>
+  ${st}${chart(d.years, d[metric], r, year - Y0)}<div id="simgph"></div>
+  <div class="g2"><div><span class="lb">${year} vs 1985-94</span><b>${a >= 0 ? '+' : ''}${a.toFixed(2)} °C</b></div><div><span class="lb">Heat exposure 2020-24</span><b>${h.toFixed(0)} <small>${lvl(h)}</small></b></div>
+  <div><span class="lb">Projected index 2035</span><b>${h35.toFixed(0)}</b></div><div><span class="lb">Hot season (months)</span><b>${d.months.join(', ')}</b></div></div>
+  <table><tr><th>Test</th><th>S</th><th>Z</th><th>p</th></tr><tr><td>Plain Mann-Kendall</td><td>${r.S}</td><td>${r.plain.z.toFixed(2)}</td><td>${fp(r.plain.p)}</td></tr><tr><td>Corrected (r1=${r.r1.toFixed(2)})</td><td>${r.S}</td><td>${r.corr.z.toFixed(2)}</td><td>${fp(r.corr.p)}</td></tr><tr><td>Corrected + FDR (${M})</td><td>-</td><td>-</td><td>q ${fp(qv)}</td></tr></table>
+  <details><summary>PROVENANCE</summary><p>NASA POWER Project (MERRA-2 reanalysis), monthly point API, T2M / T2M_MAX / T2M_MIN, community RE. Grid cell about 0.5 x 0.625 deg around ${c[1].toFixed(4)}, ${c[2].toFixed(4)}. Retrieved ${d.retrieved}.</p><p><code>${URLF(c)}</code></p>
+  <p>Caveat: the statistics use 2 m air temperature from reanalysis, not satellite land-surface temperature and not the urban heat island. The sensor picture is a visual cross-check only.</p></details>
+  <button class="lb" style="margin-top:12px;color:var(--a)" onclick="exportCSV()">EXPORT CSV WITH PROVENANCE</button>`;
+  $('simgph').replaceWith(SIMG);
+  if (!satPending && sel + satDt(d) !== satKey) satDelay(150);
+}
+
+function exportCSV() {
+  const c = C.find(x => x[0] === sel), d = D[sel];
+  let t = `# ${c[0]} | ${ML[metric]} | NASA POWER (MERRA-2) | ${d.status} | retrieved ${d.retrieved}\n# ${URLF(c)}\nyear,value_degC\n`;
+  d.years.forEach((y, i) => t += `${y},${d[metric][i].toFixed(3)}\n`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([t], { type: 'text/csv' }));
+  a.download = 'earth_detective_' + c[0].split(',')[0].replace(/\s+/g, '_') + '_' + metric + '.csv';
+  a.click();
+}
+
+function reset() {
+  sel = null;
+  tgt = null;
+  camZ = 3.6;
+  $('dossier').classList.remove('open');
+  document.body.classList.remove('dos');
+  if (tourT) tour();
+  track();
+  list();
+}
+
+function tour() {
+  if (tourT) {
+    clearInterval(tourT);
+    tourT = null;
+    $('tour').textContent = 'TOUR';
+    return;
+  }
+  const r = Object.keys(RK).filter(k => k !== 'N').sort((a, b) => RK[a] - RK[b]).slice(0, 6);
+  if (!r.length) { banner('Waiting for data...', 2000); return; }
+  let i = 0;
+  $('tour').textContent = 'STOP';
+  const go = () => openCase(r[i++ % r.length]);
+  go();
+  tourT = setInterval(go, 8000);
+}
+
+function share() {
+  history.replaceState(null, '', `#c=${sel ? C.findIndex(c => c[0] === sel) : ''}&s=${sens}&m=${metric}&y=${year}&o=${ovK}`);
+  const u = location.href;
+  try {
+    const inp = document.createElement('input');
+    inp.value = u;
+    document.body.appendChild(inp);
+    inp.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(inp);
+    if (ok) { banner('Share link copied to clipboard', 2500); return; }
+  } catch (e) {}
+  banner(`Share URL: <code>${u}</code>`, 6000);
+}
+
+function fromHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  const sVal = p.get('s');
+  if (sVal !== null && sVal !== '' && +sVal >= 0 && +sVal < 5) setSens(+sVal);
+  if (ML[p.get('m')]) { metric = p.get('m'); $('metric').value = metric; }
+  const yVal = p.get('y');
+  if (yVal !== null && +yVal >= Y0 && +yVal <= Y1) { year = +yVal; $('sl').value = year; $('yr').textContent = year; }
+  if (['lst', 'nl'].includes(p.get('o'))) setOvl(p.get('o'));
+  const cVal = p.get('c');
+  if (cVal !== null && cVal !== '' && C[+cVal]) pend = C[+cVal][0];
+}
+
+function play() {
+  if (playT) {
+    clearInterval(playT);
+    playT = null;
+    $('play').innerHTML = '▶';
+    return;
+  }
+  $('play').innerHTML = '❙❙';
+  playT = setInterval(() => {
+    year = year >= Y1 ? Y0 : year + 1;
+    $('sl').value = year;
+    upd();
+  }, 320);
+}
+
+function upd() {
+  $('yr').textContent = year;
+  paint();
+  if (sel && D[sel]) satDelay(playT ? 1500 : 350);
+  dossier();
+}
+
+function meth() {
+  const g = s => {
+    sd = 42;
+    let e = 0;
+    return Array.from({ length: 40 }, (_, i) => { e = 0.4 * e + 0.3 * gau(); return 15 + s * i + e; });
+  };
+  const rows = [['Known trend +0.030 \u00b0C/yr, AR(1) noise', g(0.03), 0.03], ['Null: no trend, same noise', g(0), 0]].map(t => {
+    const q = mk(t[1]), ci = t[2] >= q.corr.lo && t[2] <= q.corr.hi, ok = t[2] ? q.corr.p < 0.05 && ci : q.corr.p >= 0.05 && ci;
+    return `<tr><td>${t[0]}</td><td>${t[2].toFixed(3)}</td><td>${q.sen.toFixed(3)} (${q.corr.lo.toFixed(3)} to ${q.corr.hi.toFixed(3)})</td><td class="${ok ? 'ok' : 'no'}">${ok ? 'PASS' : 'CHECK'}</td></tr>`;
+  }).join('');
+  $('mbody').innerHTML = `<button class="x" onclick="$('modal').style.display='none'" aria-label="Close">×</button><div class="lb">How the detective works</div>
+  <h3>Evidence</h3><p>Monthly 2 m air temperature (T2M, T2M_MAX, T2M_MIN) from the NASA POWER API, fetched live in your browser and cached locally. A city's hot season is the 3 months with the highest 1985-2024 mean. Beacon colour and intensity show each year's departure from that city's 1985-94 average of the selected metric.</p>
+  <h3>Verdict</h3><p>Mann-Kendall trend test with Sen's slope. The variance of S is inflated by (1+r1)/(1-r1) when lag-1 autocorrelation of the detrended residuals is positive (a lag-1 approximation, not full Hamed-Rao). Because 100 contacts are tested together, p-values get a Benjamini-Hochberg false-discovery adjustment across all loaded cities (q). "Clear signal" needs q<0.05. "Not clear yet" means the data cannot separate a real trend from noise, not that nothing is happening.</p>
+  <h3>Sensor looks</h3><p>NORMAL, CRT, NVG, FLIR and NOIR are visual filters over the same globe (keys 1-5). FLIR maps brightness to a heat palette; it is a look, not a thermal measurement. Use the NASA GIBS layer for real land-surface temperature.</p>
+  <h3>Orbital fleet</h3><p>Terra, Aqua, Suomi NPP, Landsat 9, GPM and the ISS use their published altitude, inclination and period. Orbits are drawn as illustrative circles with exaggerated height, 120x speed and arbitrary phase. They are not live tracks.</p>
+  <h3>Hotspot and red arc</h3><p>The hotspot is the loaded city with the largest Sen slope for the selected metric. The red arc connects the tracked contact to it.</p>
+  <h3>Heat exposure index</h3><p><code>100 x clamp(0.5 x (Tmax_hot - 20)/20 + 0.5 x (Tmin_hot - 10)/20, 0, 1)</code> using 2020-24 means. A relative screening score, not a validated health model. The 2035 value extrapolates Sen slopes.</p>
+  <h3>Self-test (seeded, live)</h3><table><tr><th>Test</th><th>True</th><th>Recovered (95% CI)</th><th>Result</th></tr>${rows}</table>
+  <h3>Not included</h3><p>Numerical satellite land-surface temperature, NDVI and population grids need NASA Earthdata access and are not used in the statistics. MODIS land-surface temperature and VIIRS night lights appear only as NASA GIBS pictures. POWER describes a regional grid cell, not the street-level urban heat island. If data cannot be fetched or cached, Demo mode shows SYNTHETIC values that must not be cited.</p>
+  <h3>Credit</h3><p>NASA Langley POWER Project (MERRA-2, NASA GMAO). Imagery: NASA GIBS (MODIS/Terra, VIIRS Black Marble). Earth textures: three.js examples.</p>`;
+  $('modal').style.display = 'flex';
+}
+
+function demo() {
+  C.forEach(c => D[c[0]] = synth(c));
+  banner('DEMO MODE: all values are SYNTHETIC. Do not cite.');
+  stat();
+}
+
+function stat() {
+  const v = Object.values(D).filter(Boolean);
+  $('status').innerHTML = v.length + '/' + C.length + ' loaded ' + ['LIVE', 'CACHED', 'SYNTHETIC'].map(s => {
+    const n = v.filter(d => d.status === s).length;
+    return n ? `<span class="${s}">${n} ${s}</span> ` : '';
+  }).join('');
+  paint();
+  rank();
+  list();
+  dossier();
+}
+
+const INF = new Set(), Q = [...C];
+let fails = 0, stop = false;
+async function ensure(c) {
+  if (D[c[0]] || INF.has(c[0])) return;
+  INF.add(c[0]);
+  D[c[0]] = await load(c);
+  INF.delete(c[0]);
+  stat();
+}
+
+function noNet() {
+  banner('NASA POWER is unreachable and nothing is cached. Connect once to cache real data. <button class="lb" style="color:var(--a)" onclick="demo()">DEMO MODE (SYNTHETIC)</button>');
+}
+
+async function worker() {
+  while (!stop && Q.length) {
+    const c = Q.shift();
+    await ensure(c);
+    if (D[c[0]] === null) {
+      if (++fails >= 6 && !Object.values(D).some(Boolean)) { stop = true; noNet(); return; }
+    } else if (D[c[0]]) fails = 0;
+  }
+}
+
+async function reload() {
+  $('status').innerHTML = 'loading evidence...';
+  await Promise.all([worker(), worker(), worker(), worker()]);
+}
+
+function enter() {
+  landing = false;
+  gy = 0;
+  gs = 1;
+  camZ = 3.6;
+  vis();
+  document.body.classList.remove('land');
+  setTimeout(() => { const l = $('land'); if (l) l.style.display = 'none'; }, 1000);
+  if (pend) {
+    const n = pend;
+    pend = null;
+    setTimeout(() => openCase(n), 700);
+  }
+  list();
+}
+
+$('sl').oninput = e => { year = +e.target.value; upd(); };
+$('metric').onchange = e => { metric = e.target.value; paint(); rank(); list(); dossier(); };
+
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { $('modal').style.display = 'none'; $('satc').style.display = 'none'; }
+  if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName) || e.metaKey || e.ctrlKey) return;
+  if (landing) { if (e.key === 'Enter') enter(); return; }
+  if (/^[1-5]$/.test(e.key)) setSens(+e.key - 1);
+  else if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('nohud');
+  else if (e.key === 'd' || e.key === 'D') { L.d = !L.d; $('l-d').checked = L.d; }
+  else if (e.key === 't' || e.key === 'T') tour();
+  else if (e.key === ']') step(1);
+  else if (e.key === '[') step(-1);
+  else if (e.key === '+' || e.key === '=') zoom(-1);
+  else if (e.key === '-') zoom(1);
+});
+
+SN.forEach((n, i) => {
+  const b = document.createElement('button');
+  b.textContent = n;
+  b.title = 'Sensor ' + (i + 1);
+  b.onclick = () => setSens(i);
+  $('sg').appendChild(b);
+});
+setSens(0);
+if (innerWidth < 900) $('cases').style.display = 'none';
+
+fromHash();
+initGL();
+list();
+reload();
+setTimeout(() => {
+  $('loader').style.opacity = 0;
+  setTimeout(() => $('loader').remove(), 900);
+}, 1400);
+</script>
+</body>
+</html>
